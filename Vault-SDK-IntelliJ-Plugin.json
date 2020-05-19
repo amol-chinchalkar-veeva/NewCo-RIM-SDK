@@ -1,0 +1,34 @@
+{
+  "ide" : {
+    "connectionPrefix" : "CONN_",
+    "documentFieldPrefix" : "DOCFIELD_",
+    "documentLifecyclePrefix" : "LIFECYCLE_",
+    "documentLifecycleRolePrefix" : "ROLE_",
+    "documentLifecycleStatePrefix" : "STATE_",
+    "documentVersionVariable" : "documentVersion",
+    "javaCodePath" : "src/main/java",
+    "messageVariable" : "message",
+    "objectFieldPrefix" : "OBJFIELD_",
+    "objectLifecyclePrefix" : "LIFECYCLE_",
+    "objectLifecycleRole" : "ROLE_",
+    "objectLifecycleStatePrefix" : "STATE_",
+    "objectLifecycleUserActionPrefix" : "USER_ACTION_",
+    "objectPrefix" : "OBJECT_",
+    "objectRecordChangeVariable" : "recordChange",
+    "objectRecordVariable" : "record",
+    "picklistPrefix" : "PICKLIST_",
+    "picklistValuePrefix" : "PICKLIST_VALUE_",
+    "pluginSettingVersion" : "19R2.0",
+    "queuePrefix" : "QUEUE_",
+    "queueServiceVariable" : "queueService"
+  },
+  "vaults" : [ {
+    "client_id" : "NewCo",
+    "default" : false,
+    "name" : "RIM Master SBX",
+    "password" : "Sy2ka6Sy2!",
+    "username" : "amol.chinchalkar@sb-newco.com",
+    "vaultDNS" : "sb-newco-sandbox.veevavault.com",
+    "version" : "v19.2"
+  } ]
+}
