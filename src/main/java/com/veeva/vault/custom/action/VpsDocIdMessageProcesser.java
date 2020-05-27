@@ -14,16 +14,12 @@
  */
 package com.veeva.vault.custom.action;
 
-import com.veeva.vault.custom.util.VpsVQLHelper;
+
 import com.veeva.vault.custom.util.api.VpsAPIClient;
 import com.veeva.vault.sdk.api.core.LogService;
 import com.veeva.vault.sdk.api.core.ServiceLocator;
-import com.veeva.vault.sdk.api.core.ValueType;
 import com.veeva.vault.sdk.api.core.VaultCollections;
-import com.veeva.vault.sdk.api.query.QueryResponse;
 import com.veeva.vault.sdk.api.queue.*;
-
-import java.math.BigDecimal;
 import java.util.Map;
 
 @MessageProcessorInfo()
@@ -51,7 +47,7 @@ public class VpsDocIdMessageProcesser implements MessageProcessor {
         if (!base30DocumentId.equals("")) {
             boolean updateSuccess = false;
             updateSuccess = apiClient.updateDocumentFields(docId, majorVersionNumber,
-                    minorVersionNumber, documentFieldsToUpdate);
+                    minorVersionNumber, documentFieldsToUpdate, apiConnection);
             if (!updateSuccess) {
                 logger.error("Failed to update document with id {}", docId + "_" + majorVersionNumber +
                         "_" + minorVersionNumber);

@@ -1,7 +1,7 @@
 /*
  * --------------------------------------------------------------------
  * UDC:         VpsAPIClient
- * Author:      markarnold @ Veeva
+ * Author:      achinchalkar @ Veeva
  * Date:        2019-07-25
  * --------------------------------------------------------------------
  * Description: Helper for running vql queries via api
@@ -632,7 +632,7 @@ public class VpsAPIClient extends VpsBaseHelper {
      * @param documentFieldsToUpdate
      */
     public boolean updateDocumentFields(String docID, String majorVersion,
-                                        String minorVersion, Map<String, String> documentFieldsToUpdate) {
+                                        String minorVersion, Map<String, String> documentFieldsToUpdate, String apiConnection) {
 
         LogService logService = ServiceLocator.locate(LogService.class);
         HttpService httpService = ServiceLocator.locate(HttpService.class);

@@ -1,3 +1,17 @@
+/*
+ * --------------------------------------------------------------------
+ * MessageProcessor:	VpsDocIDGenerator
+ * Author:				achinchalkar @ Veeva
+ * Date:				2020-05-24
+ *---------------------------------------------------------------------
+ * Description:
+ *---------------------------------------------------------------------
+ * Copyright (c) 2020 Veeva Systems Inc.  All Rights Reserved.
+ *		This code is based on pre-existing content developed and
+ *		owned by Veeva Systems Inc. and may only be used in connection
+ *		with the deliverable with which it was provided to Customer.
+ *---------------------------------------------------------------------
+ */
 package com.veeva.vault.custom.action;
 
 
@@ -144,8 +158,8 @@ public class VpsDocIDGenerator implements DocumentAction {
      */
     public void updateAllVersions(String docId, String base30DocumentId, String apiConnection) {
         LogService logger = ServiceLocator.locate(LogService.class);
-        // VpsAPIClient apiClient = new VpsAPIClient(ApiConnection);
         VpsVQLHelper vqlHelper = new VpsVQLHelper();
+        QueueService queueService = ServiceLocator.locate(QueueService.class);
 
         vqlHelper.appendVQL("SELECT " + DOCFIELD_MAJOR_VERSION_NUMBER + "," +
                 DOCFIELD_MINOR_VERSION_NUMBER + "," + DOCFIELD_NEWCO_DOCUMENT_ID);
@@ -156,11 +170,10 @@ public class VpsDocIDGenerator implements DocumentAction {
         versionResponse.streamResults().forEach(versionResult -> {
             BigDecimal majorVersionNumber = versionResult.getValue(DOCFIELD_MAJOR_VERSION_NUMBER, ValueType.NUMBER);
             BigDecimal minorVersionNumber = versionResult.getValue(DOCFIELD_MINOR_VERSION_NUMBER, ValueType.NUMBER);
-//            String existingDocId = getNotNullValue(versionResult.getValue(DOCFIELD_NEWCO_DOCUMENT_ID, ValueType.STRING));
+            String existingDocId = getNotNullValue(versionResult.getValue(DOCFIELD_NEWCO_DOCUMENT_ID, ValueType.STRING));
             boolean updateSuccess = false;
-            if (!base30DocumentId.equals("")) {
-                QueueService queueService = ServiceLocator.locate(QueueService.class);
 
+            if (existingDocId.equals("")) {
                 Message message = queueService.newMessage(QUEUE_NAME)
                         .setAttribute("docId", docId)
                         .setAttribute("base30DocumentId", base30DocumentId)
@@ -171,7 +184,6 @@ public class VpsDocIDGenerator implements DocumentAction {
                 //Put the new message into the Spark outbound queue.
                 //The PutMessageResponse can be used to review if queuing was successful or not
                 PutMessageResponse response = queueService.putMessage(message);
-
                 logger.info("Put 'document' Message in Queue - state = 'docid");
 
                 //Check that the message queue successfully processed the message.
@@ -195,12 +207,12 @@ public class VpsDocIDGenerator implements DocumentAction {
         RecordService recordService = ServiceLocator.locate(RecordService.class);
         LogService logger = ServiceLocator.locate(LogService.class);
 
-        final String[] userId = {""};
+        final String[] recordId = {""};
         recordService.batchSaveRecords(listRecord)
                 .onSuccesses(batchOperationSuccess -> {
                     batchOperationSuccess.stream().forEach(success -> {
-                        userId[0] = success.getRecordId();
-                        logger.debug("Successfully created/updated record with id: " + userId[0] + " for object");
+                        recordId[0] = success.getRecordId();
+                        logger.debug("Successfully created/updated record with id: " + recordId[0] + " for object");
                     });
                 })
                 .onErrors(batchOperationErrors -> {
@@ -211,12 +223,11 @@ public class VpsDocIDGenerator implements DocumentAction {
                 })
                 .execute();
         logger.debug("Completed");
-        return userId[0];
+        return recordId[0];
     }
 
     /**
      * Get name from object
-     *
      * @param id
      * @return
      */
@@ -235,7 +246,6 @@ public class VpsDocIDGenerator implements DocumentAction {
 
     /**
      * Get ID of auto number record
-     *
      * @param autoNumberObjectName
      * @return
      */

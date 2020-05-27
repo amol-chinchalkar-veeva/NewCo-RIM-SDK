@@ -1,7 +1,7 @@
 /*
  * --------------------------------------------------------------------
  * UDC:			VpsVpsHttpCalloutHelper
- * Author:		paulkwitkin @ Veeva
+ * Author:		achinchalkar @ Veeva
  * Date:		2019-07-29
  *---------------------------------------------------------------------
  * Description:

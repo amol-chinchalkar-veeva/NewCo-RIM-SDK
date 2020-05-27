@@ -1,7 +1,7 @@
 /*
  * --------------------------------------------------------------------
  * UDC:         VpsVQLHelper
- * Author:      markarnold @ Veeva
+ * Author:      achinchalkar @ Veeva
  * Date:        2019-07-25
  * --------------------------------------------------------------------
  * Description: Helper for running vql queries
