@@ -27,6 +27,7 @@ import com.veeva.vault.sdk.api.json.JsonData;
 import com.veeva.vault.sdk.api.json.JsonObject;
 import com.veeva.vault.sdk.api.json.JsonValueType;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -54,12 +55,14 @@ public class VpsAPIClient extends VpsBaseHelper {
     private static final String URL_BINDER_CREATETEMPLATE = "/api/%s/objects/binders";
     private static final String URL_DOCUMENT_CREATETEMPLATE = "/api/%s/objects/documents";
     private static final String URL_OBJECT_CREATE = "/api/%s/vobjects/%s";
-    private static final String URL_DOCUMENT_UPDATE = "/api/%s/objects/documents/%s/versions/%s/%s";
+    private static final String URL_UPDATE_DOCUMENT_VERSION = "/api/%s/objects/documents/%s/versions/%s/%s";
+    private static final String URL_UPDATE_BINDER_VERSION = "/api/%s/objects/binders/%s/versions/%s/%s";
     private static final String URL_DOCUMENT_LIFEYCLEACTIONS = "/api/%s/objects/documents/%s/versions/%s/%s/lifecycle_actions/";
     private static final String URL_INITIATE_DOCUMENT_LIFEYCLEACTIONS = "/api/%s/objects/documents/%s/versions/%s/%s/lifecycle_actions/%s";
     private static final String URL_INITIATE_OBJECT_ACTION = "/api/%s/vobjects/%s/%s/actions/%s";
     private static final String URL_QUERY = "/api/%s/query";
     private static final String URL_ROLES = "/api/%s/objects/documents/%s/roles/%s";
+    private static final String URL_RETRIEVE_DOCUMENT_VERSIONS = "/api/%s/objects/documents/%s/versions";
 
 
     HttpService httpService = ServiceLocator.locate(HttpService.class);
@@ -154,7 +157,7 @@ public class VpsAPIClient extends VpsBaseHelper {
         final String[] usertaskId = {""};
         List<String> usertaskIdList = VaultCollections.newList();
 
-        HttpRequest request = httpService.newHttpRequest("local_http_callout_connection");
+        HttpRequest request = httpService.newHttpRequest(apiConnection);
         request.setMethod(HttpMethod.POST);
         String createObjectPath = String.format(
                 URL_OBJECT_CREATE,
@@ -632,7 +635,7 @@ public class VpsAPIClient extends VpsBaseHelper {
      * @param documentFieldsToUpdate
      */
     public boolean updateDocumentFields(String docID, String majorVersion,
-                                        String minorVersion, Map<String, String> documentFieldsToUpdate, String apiConnection) {
+                                        String minorVersion, Map<String, String> documentFieldsToUpdate) {
 
         LogService logService = ServiceLocator.locate(LogService.class);
         HttpService httpService = ServiceLocator.locate(HttpService.class);
@@ -644,7 +647,7 @@ public class VpsAPIClient extends VpsBaseHelper {
 //		request.appendPath("/api/v19.1/objects/documents/" + docID + "/versions/" + majorVersion + "/" + minorVersion);
 //		request.appendPath(URL_DOCUMENT_UPDATE,apiVersion,docID,majorVersion,minorVersion);
         String initiateDocumentUpdateUrl = String.format(
-                URL_DOCUMENT_UPDATE,
+                URL_UPDATE_DOCUMENT_VERSION,
                 apiVersion,
                 docID,
                 majorVersion,
@@ -682,5 +685,177 @@ public class VpsAPIClient extends VpsBaseHelper {
 				.execute();
 
 		return successList.size() > 0;
+    }
+    /**
+     * @param docID
+     * @param majorVersion
+     * @param minorVersion
+     * @param FieldsToUpdate
+     */
+    public boolean updateBinderFields(String docID, String majorVersion,
+                                        String minorVersion, Map<String, String> FieldsToUpdate) {
+
+        LogService logService = ServiceLocator.locate(LogService.class);
+        HttpService httpService = ServiceLocator.locate(HttpService.class);
+        List<Boolean> successList = VaultCollections.newList();
+        //A `newLocalHttpRequest` is an Http Callout against the same vault (local) using the user that initiated the SDK code.
+        //The user must have access to the action being performed or the Vault API will return an access error.
+        HttpRequest request = httpService.newHttpRequest(apiConnection);
+        request.setMethod(HttpMethod.PUT);
+        String initiateDocumentUpdateUrl = String.format(
+                URL_UPDATE_BINDER_VERSION,
+                apiVersion,
+                docID,
+                majorVersion,
+                minorVersion);
+
+        request.appendPath(initiateDocumentUpdateUrl);
+        for (String key : FieldsToUpdate.keySet()) {
+            request.setBodyParam(key, FieldsToUpdate.get(key));
+        }
+
+        httpService.send(request, HttpResponseBodyValueType.STRING)
+                .onError(response -> {
+                    String errorMessage = "HTTP Status Code: " + response.getHttpResponse().getHttpStatusCode();
+                    getLogService().error("updateDocumentFields {}", errorMessage);
+                    getErrorList().add(errorMessage);
+                })
+                .onSuccess(response -> {
+                    VpsAPIResponse apiResponse = new VpsAPIResponse(response.getResponseBody());
+                    if (apiResponse.getResponseStatus().equals(RESPONSESTATUS_SUCCESS)) {
+                        successList.add(true);
+                    } else {
+                        JsonArray errors = apiResponse.getErrors();
+                        if (errors != null) {
+                            for (int i = 0; i < errors.getSize(); i++) {
+                                JsonObject error = errors.getValue(i, JsonValueType.OBJECT);
+                                String errorType = error.getValue(APIFIELD_ERROR_TYPE, JsonValueType.STRING);
+                                String errorMessage = error.getValue(APIFIELD_ERROR_MESSAGE, JsonValueType.STRING);
+                                getLogService().error("updateBinderFields {}", errorType + " - " + errorMessage);
+                                getErrorList().add(errorType + " - " + errorMessage);
+                            }
+                        }
+                    }
+
+                })
+                .execute();
+
+        return successList.size() > 0;
+    }
+    /**
+     * @param docID
+     *
+     * */
+    public Map retrieveDocumentVersions(String docID) {
+
+        Map<String, String> versionInfo = VaultCollections.newMap();
+
+        LogService logService = ServiceLocator.locate(LogService.class);
+        HttpService httpService = ServiceLocator.locate(HttpService.class);
+        List<Boolean> successList = VaultCollections.newList();
+        //A `newLocalHttpRequest` is an Http Callout against the same vault (local) using the user that initiated the SDK code.
+        //The user must have access to the action being performed or the Vault API will return an access error.
+        HttpRequest request = httpService.newHttpRequest(apiConnection);
+        request.setMethod(HttpMethod.GET);
+        String apiURL = String.format(
+                URL_RETRIEVE_DOCUMENT_VERSIONS,
+                apiVersion,
+                docID);
+
+        request.appendPath(apiURL);
+
+        httpService.send(request, HttpResponseBodyValueType.STRING)
+                .onError(response -> {
+                    String errorMessage = "HTTP Status Code: " + response.getHttpResponse().getHttpStatusCode();
+                    getLogService().error("retrieveDocumentVersions {}", errorMessage);
+                    getErrorList().add(errorMessage);
+                })
+                .onSuccess(response -> {
+                    VpsAPIResponse apiResponse = new VpsAPIResponse(response.getResponseBody());
+                    if (apiResponse.getResponseStatus().equals(RESPONSESTATUS_SUCCESS)) {
+                        successList.add(true);
+                        JsonArray versionsArray = apiResponse.getArray("versions");
+
+                        for (int i = 0; i < versionsArray.getSize(); i++) {
+                            JsonObject versions = versionsArray.getValue(i, JsonValueType.OBJECT);
+                            String versionNumber = versions.getValue("number", JsonValueType.STRING);
+                            String versionValue= versions.getValue("value", JsonValueType.STRING);
+                            versionInfo.put(versionNumber,versionValue);
+                        }
+                    } else {
+                        JsonArray errors = apiResponse.getErrors();
+                        if (errors != null) {
+                            for (int i = 0; i < errors.getSize(); i++) {
+                                JsonObject error = errors.getValue(i, JsonValueType.OBJECT);
+                                String errorType = error.getValue(APIFIELD_ERROR_TYPE, JsonValueType.STRING);
+                                String errorMessage = error.getValue(APIFIELD_ERROR_MESSAGE, JsonValueType.STRING);
+                                getLogService().error("retrieveDocumentVersions {}", errorType + " - " + errorMessage);
+                                getErrorList().add(errorType + " - " + errorMessage);
+                            }
+                        }
+                    }
+
+                })
+                .execute();
+
+        return versionInfo;
+    }
+    /**
+     * @param docID
+     * @param majorVersion
+     * @param minorVersion
+     * @param documentFieldsToUpdate
+     */
+    public boolean updateDocumentBulk(String docID, String majorVersion,
+                                        String minorVersion, Map<String, String> documentFieldsToUpdate, String apiConnection) {
+
+        LogService logService = ServiceLocator.locate(LogService.class);
+        HttpService httpService = ServiceLocator.locate(HttpService.class);
+        List<Boolean> successList = VaultCollections.newList();
+        //A `newLocalHttpRequest` is an Http Callout against the same vault (local) using the user that initiated the SDK code.
+        //The user must have access to the action being performed or the Vault API will return an access error.
+        HttpRequest request = httpService.newHttpRequest(apiConnection);
+        request.setMethod(HttpMethod.PUT);
+//		request.appendPath("/api/v19.1/objects/documents/" + docID + "/versions/" + majorVersion + "/" + minorVersion);
+//		request.appendPath(URL_DOCUMENT_UPDATE,apiVersion,docID,majorVersion,minorVersion);
+        String initiateDocumentUpdateUrl = String.format(
+                URL_UPDATE_DOCUMENT_VERSION,
+                apiVersion,
+                docID,
+                majorVersion,
+                minorVersion);
+
+        request.appendPath(initiateDocumentUpdateUrl);
+        for (String key : documentFieldsToUpdate.keySet()) {
+            request.setBodyParam(key, documentFieldsToUpdate.get(key));
+        }
+
+        httpService.send(request, HttpResponseBodyValueType.STRING)
+                .onError(response -> {
+                    String errorMessage = "HTTP Status Code: " + response.getHttpResponse().getHttpStatusCode();
+                    getLogService().error("updateDocumentFields {}", errorMessage);
+                    getErrorList().add(errorMessage);
+                })
+                .onSuccess(response -> {
+                    VpsAPIResponse apiResponse = new VpsAPIResponse(response.getResponseBody());
+                    if (apiResponse.getResponseStatus().equals(RESPONSESTATUS_SUCCESS)) {
+                        successList.add(true);
+                    } else {
+                        JsonArray errors = apiResponse.getErrors();
+                        if (errors != null) {
+                            for (int i = 0; i < errors.getSize(); i++) {
+                                JsonObject error = errors.getValue(i, JsonValueType.OBJECT);
+                                String errorType = error.getValue(APIFIELD_ERROR_TYPE, JsonValueType.STRING);
+                                String errorMessage = error.getValue(APIFIELD_ERROR_MESSAGE, JsonValueType.STRING);
+                                getLogService().error("updateDocumentFields {}", errorType + " - " + errorMessage);
+                                getErrorList().add(errorType + " - " + errorMessage);
+                            }
+                        }
+                    }
+
+                })
+                .execute();
+
+        return successList.size() > 0;
     }
 }

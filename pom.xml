@@ -9,7 +9,7 @@
     <version>1.0-SNAPSHOT</version>
 
     <properties>
-        <vault.sdk.version>[20.1.0-release473]</vault.sdk.version>
+        <vault.sdk.version>[20.1.3-release2292]</vault.sdk.version>
     </properties>
     <repositories>
         <repository>

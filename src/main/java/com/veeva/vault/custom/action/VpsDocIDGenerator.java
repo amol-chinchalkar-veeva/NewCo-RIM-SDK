@@ -30,31 +30,25 @@ import com.veeva.vault.sdk.api.query.QueryResponse;
 import com.veeva.vault.sdk.api.queue.Message;
 import com.veeva.vault.sdk.api.queue.PutMessageResponse;
 import com.veeva.vault.sdk.api.queue.QueueService;
-
-import java.math.BigDecimal;
 import java.util.List;
-import java.util.Map;
+
 
 @DocumentActionInfo(label = "Set Document ID")
 
 public class VpsDocIDGenerator implements DocumentAction {
 
-    private static final String DOCFIELD_MAJOR_VERSION_NUMBER = "major_version_number__v";
-    private static final String DOCFIELD_MINOR_VERSION_NUMBER = "minor_version_number__v";
+
     private static final String DOCFIELD_ID = "id";
-    private static final String DOCFIELD_STATUS = "status__v";
+
     //doc number config
     final static int DOCID_FORMAT_LEGTH = 6;
     final static int DOCID_MAX_VALUE = 728999999;
     final static String DOCID_FORMAT_PADDING = "0";
 
     private static final String OBJFIELD_NAME = "name__v";
-    private static final String AUTONUMBER_OBJ_NAME = "newco_doc_id__c";
-    private static final String DOCFIELD_NEWCO_DOCUMENT_ID = "newco_document_id__c"; //newco_document_id__c
-    private static final String DOCFIELD_EXPORT_FILENAME = "export_filename__v";
-    public static final String VERSION_ID_FIELD = "version_id";
+    private static final String AUTONUMBER_OBJ_NAME = "docid_autonumber__c";
+    private static final String DOCFIELD_BASE30_DOCUMENT_ID = "document_id__c"; //newco_document_id__c
     private static final String API_CONNECTION = "local_http_callout_connection";
-
     private static final String QUEUE_NAME = "doc_id_queue__c";
 
 
@@ -73,18 +67,17 @@ public class VpsDocIDGenerator implements DocumentAction {
 
         VpsSequenceGenerator seqGenerator = new VpsSequenceGenerator();
         LogService logger = ServiceLocator.locate(LogService.class);
+        VpsAPIClient apiClient = new VpsAPIClient(API_CONNECTION);
 
         for (DocumentVersion documentVersion : documentActionContext.getDocumentVersions()) {
             DocumentService docService = ServiceLocator.locate(DocumentService.class);
             List<DocumentVersion> docVersionList = VaultCollections.newList();
 
             String docId = documentVersion.getValue(DOCFIELD_ID, ValueType.STRING);
-            // String docStatus = documentVersion.getValue(DOCFIELD_STATUS, ValueType.REFERENCES);
-            String docNewCoId = getNotNullValue(documentVersion.getValue(DOCFIELD_NEWCO_DOCUMENT_ID, ValueType.STRING));
-
+            String existingdocId = getNotNullValue(documentVersion.getValue(DOCFIELD_BASE30_DOCUMENT_ID, ValueType.STRING));
             logger.info("Document versions to be updated for id {}", docId);
 
-            if (docNewCoId.equals("")) {
+            if (existingdocId.equals("")) {
                 // create & get ID of a auto number object
                 String autoNumberRecordID = createNewObject(AUTONUMBER_OBJ_NAME);
                 logger.info("Created auto number object with id {}", autoNumberRecordID);
@@ -102,9 +95,9 @@ public class VpsDocIDGenerator implements DocumentAction {
                         logger.info("Generated base30 {} id for the decimal {}", base30DocID, intUniqueDocID);
 
                         if (!base30DocID.equals("")) {
-                            //update all versions for id
-                            updateAllVersions(docId, base30DocID, API_CONNECTION);
-                            logger.info("Document versions updated for id {}", docId);
+                            //create a local queue
+                            queueLocalMessage(docId, base30DocID);
+                            logger.info("Document message queued for id {}", docId);
                         }
                     } else {
                         String errMsg = "The Document ID is exceeding max limit " + DOCID_MAX_VALUE;
@@ -112,95 +105,15 @@ public class VpsDocIDGenerator implements DocumentAction {
                     }
                 }
             } else {
-                //handle steady state versions
-                logger.info("Document versions already has Document id {}", docNewCoId);
+                logger.info("Document versions already has Document id {}", existingdocId);
             }
         }
 
     }
-
-    /**
-     * updatePreviousVersions : Only updates the latest version
-     *
-     * @param id
-     * @param base30Id
-     */
-    private void updateLatestVersions(String id, String base30Id) {
-        DocumentService ds = ServiceLocator.locate(DocumentService.class);
-        List<DocumentVersion> docUpdates = VaultCollections.newList();
-
-        VpsVQLHelper vqlHelper = new VpsVQLHelper();
-        vqlHelper.appendVQL("SELECT " + "version_id," + DOCFIELD_NEWCO_DOCUMENT_ID);
-        vqlHelper.appendVQL(" FROM " + "allversions documents");
-        vqlHelper.appendVQL(" WHERE " + DOCFIELD_ID + "=" + id);
-        QueryResponse versionResponse = vqlHelper.runVQL();
-        versionResponse.streamResults().forEach(versionResult -> {
-            String docId = getNotNullValue(versionResult.getValue(DOCFIELD_NEWCO_DOCUMENT_ID, ValueType.STRING));
-            DocumentVersion docUpdate = ds.newDocumentWithId(id);
-            if (docId != null || docId.equals("")) {
-                docUpdate.setValue(DOCFIELD_NEWCO_DOCUMENT_ID, base30Id);
-                docUpdate.setValue(DOCFIELD_EXPORT_FILENAME,
-                        base30Id);
-                docUpdates.add(docUpdate);
-            }
-        });
-        if (docUpdates.size() > 0) {
-            ds.saveDocumentVersions(docUpdates);
-        }
-    }
-
-    /**
-     * updatePreviousVersions : Queue each version
-     *
-     * @param docId
-     * @param base30DocumentId
-     * @param apiConnection
-     */
-    public void updateAllVersions(String docId, String base30DocumentId, String apiConnection) {
-        LogService logger = ServiceLocator.locate(LogService.class);
-        VpsVQLHelper vqlHelper = new VpsVQLHelper();
-        QueueService queueService = ServiceLocator.locate(QueueService.class);
-
-        vqlHelper.appendVQL("SELECT " + DOCFIELD_MAJOR_VERSION_NUMBER + "," +
-                DOCFIELD_MINOR_VERSION_NUMBER + "," + DOCFIELD_NEWCO_DOCUMENT_ID);
-        vqlHelper.appendVQL(" FROM " + "allversions documents");
-        vqlHelper.appendVQL(" WHERE " + DOCFIELD_ID + "=" + docId);
-        QueryResponse versionResponse = vqlHelper.runVQL();
-        //update previous versions one by one
-        versionResponse.streamResults().forEach(versionResult -> {
-            BigDecimal majorVersionNumber = versionResult.getValue(DOCFIELD_MAJOR_VERSION_NUMBER, ValueType.NUMBER);
-            BigDecimal minorVersionNumber = versionResult.getValue(DOCFIELD_MINOR_VERSION_NUMBER, ValueType.NUMBER);
-            String existingDocId = getNotNullValue(versionResult.getValue(DOCFIELD_NEWCO_DOCUMENT_ID, ValueType.STRING));
-            boolean updateSuccess = false;
-
-            if (existingDocId.equals("")) {
-                Message message = queueService.newMessage(QUEUE_NAME)
-                        .setAttribute("docId", docId)
-                        .setAttribute("base30DocumentId", base30DocumentId)
-                        .setAttribute("apiConnection", apiConnection)
-                        .setAttribute("majorVersionNumber", majorVersionNumber.toString())
-                        .setAttribute("minorVersionNumber", minorVersionNumber.toString());
-
-                //Put the new message into the Spark outbound queue.
-                //The PutMessageResponse can be used to review if queuing was successful or not
-                PutMessageResponse response = queueService.putMessage(message);
-                logger.info("Put 'document' Message in Queue - state = 'docid");
-
-                //Check that the message queue successfully processed the message.
-                if (response.getError() != null) {
-                    logger.info("ERROR Queuing Failed: " + response.getError().getMessage());
-                } else {
-                    response.getPutMessageResults().stream().forEach(result -> {
-                        logger.info("SUCCESS: " + result.getMessageId() + " " + result.getConnectionName());
-                    });
-                }
-            }
-        });
-    }
-
 
     /**
      * Save Records
+     *
      * @param listRecord
      */
     private String saveRecords(List<Record> listRecord) {
@@ -228,6 +141,7 @@ public class VpsDocIDGenerator implements DocumentAction {
 
     /**
      * Get name from object
+     *
      * @param id
      * @return
      */
@@ -246,6 +160,7 @@ public class VpsDocIDGenerator implements DocumentAction {
 
     /**
      * Get ID of auto number record
+     *
      * @param autoNumberObjectName
      * @return
      */
@@ -267,4 +182,32 @@ public class VpsDocIDGenerator implements DocumentAction {
         return value;
     }
 
-}
+    /**
+     * updatePreviousVersions : Queue each version
+     *
+     * @param docId
+     * @param base30DocumentId
+     */
+    public void queueLocalMessage(String docId, String base30DocumentId) {
+        LogService logger = ServiceLocator.locate(LogService.class);
+
+        QueueService queueService = ServiceLocator.locate(QueueService.class);
+        Message message = queueService.newMessage(QUEUE_NAME)
+                .setAttribute("docId", docId)
+                .setAttribute("base30DocumentId", base30DocumentId)
+                .setAttribute("apiConnection", API_CONNECTION);
+        //Put the new message into the Spark queue.
+        //The Response can be used to review if queuing was successful or not
+        PutMessageResponse response = queueService.putMessage(message);
+        logger.info("Put 'document' Message in Queue - for:{}",docId);
+
+        //Check that the message queue successfully processed the message.
+        if (response.getError() != null) {
+            logger.info("ERROR Queuing Failed: " + response.getError().getMessage());
+        } else {
+            response.getPutMessageResults().stream().forEach(result -> {
+                logger.info("SUCCESS: " + result.getMessageId() + " " + result.getConnectionName());
+            });
+        }
+    }
+}//EOF
