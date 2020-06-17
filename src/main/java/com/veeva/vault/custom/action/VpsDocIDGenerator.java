@@ -70,8 +70,6 @@ public class VpsDocIDGenerator implements DocumentAction {
         VpsAPIClient apiClient = new VpsAPIClient(API_CONNECTION);
 
         for (DocumentVersion documentVersion : documentActionContext.getDocumentVersions()) {
-            DocumentService docService = ServiceLocator.locate(DocumentService.class);
-            List<DocumentVersion> docVersionList = VaultCollections.newList();
 
             String docId = documentVersion.getValue(DOCFIELD_ID, ValueType.STRING);
             String existingdocId = getNotNullValue(documentVersion.getValue(DOCFIELD_BASE30_DOCUMENT_ID, ValueType.STRING));
