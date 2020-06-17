@@ -12,7 +12,7 @@
  *		with the deliverable with which it was provided to Customer.
  *---------------------------------------------------------------------
  */
-package com.veeva.vault.custom.processer;
+package com.veeva.vault.custom.processor;
 
 
 import com.veeva.vault.custom.util.VpsVQLHelper;
@@ -28,7 +28,7 @@ import java.math.BigDecimal;
 import java.util.Map;
 
 @MessageProcessorInfo()
-public class VpsDocIdMessageProcesser implements MessageProcessor {
+public class VpsDocIdMessageProcessor implements MessageProcessor {
 
     private static final String DOCFIELD_EXPORT_FILENAME = "export_filename__v";
     private static final String DOCFIELD_BASE30_DOCUMENT_ID = "document_id__c";
@@ -37,9 +37,10 @@ public class VpsDocIdMessageProcesser implements MessageProcessor {
     private static final String DOCFIELD_ID = "id";
     private static final String DOCFIELD_BINDER = "binder__v";
 
+
     public void execute(MessageContext context) {
         LogService logger = ServiceLocator.locate(LogService.class);
-        Message message = context.getMessage();
+        logger.info("Initialize processor VpsDocIdMessageProcessor");
         String docId = context.getMessage().getAttribute("docId", MessageAttributeValueType.STRING);
         String base30DocumentId = context.getMessage().getAttribute("base30DocumentId", MessageAttributeValueType.STRING);
         String apiConnection = context.getMessage().getAttribute("apiConnection", MessageAttributeValueType.STRING);
@@ -53,13 +54,13 @@ public class VpsDocIdMessageProcesser implements MessageProcessor {
      * @param base30DocumentId
      */
     public void updateAllVersions(String docId, String base30DocumentId, String apiConnection) {
-        LogService logger = ServiceLocator.locate(LogService.class);
+
         VpsVQLHelper vqlHelper = new VpsVQLHelper();
-        QueueService queueService = ServiceLocator.locate(QueueService.class);
         VpsAPIClient apiClient = new VpsAPIClient(apiConnection);
+        LogService logger = ServiceLocator.locate(LogService.class);
 
         vqlHelper.appendVQL("SELECT " + DOCFIELD_MAJOR_VERSION_NUMBER + "," +
-                DOCFIELD_MINOR_VERSION_NUMBER + "," + DOCFIELD_BASE30_DOCUMENT_ID+","+DOCFIELD_BINDER);
+                DOCFIELD_MINOR_VERSION_NUMBER + "," + DOCFIELD_BASE30_DOCUMENT_ID +","+ DOCFIELD_BINDER);
         vqlHelper.appendVQL(" FROM " + "allversions documents");
         vqlHelper.appendVQL(" WHERE " + DOCFIELD_ID + "=" + docId);
         QueryResponse versionResponse = vqlHelper.runVQL();
