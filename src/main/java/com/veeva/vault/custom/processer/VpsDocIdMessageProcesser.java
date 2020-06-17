@@ -43,7 +43,7 @@ public class VpsDocIdMessageProcesser implements MessageProcessor {
         String docId = context.getMessage().getAttribute("docId", MessageAttributeValueType.STRING);
         String base30DocumentId = context.getMessage().getAttribute("base30DocumentId", MessageAttributeValueType.STRING);
         String apiConnection = context.getMessage().getAttribute("apiConnection", MessageAttributeValueType.STRING);
-        updateAllVersionsVQL(docId, base30DocumentId, apiConnection);
+        updateAllVersions(docId, base30DocumentId, apiConnection);
     }
 
     /**
@@ -52,7 +52,7 @@ public class VpsDocIdMessageProcesser implements MessageProcessor {
      * @param docId
      * @param base30DocumentId
      */
-    public void updateAllVersionsVQL(String docId, String base30DocumentId, String apiConnection) {
+    public void updateAllVersions(String docId, String base30DocumentId, String apiConnection) {
         LogService logger = ServiceLocator.locate(LogService.class);
         VpsVQLHelper vqlHelper = new VpsVQLHelper();
         QueueService queueService = ServiceLocator.locate(QueueService.class);
@@ -84,10 +84,10 @@ public class VpsDocIdMessageProcesser implements MessageProcessor {
                             minorVersionNumber.toString(), documentFieldsToUpdate);
                 }
                 if (!updateSuccess) {
-                    logger.error("Failed to update document with id {}", docId + "_" + majorVersionNumber +
+                    logger.error("Failed to update binder/document with id {}", docId + "_" + majorVersionNumber +
                             "_" + minorVersionNumber);
                 } else {
-                    logger.info("Successfully updated document with id {}", docId + "_" + majorVersionNumber +
+                    logger.info("Successfully updated binder/document with id {}", docId + "_" + majorVersionNumber +
                             "_" + minorVersionNumber);
                 }
             }
