@@ -15,6 +15,7 @@
 package com.veeva.vault.custom.processor;
 
 
+import com.veeva.vault.custom.util.VpsUtilHelper;
 import com.veeva.vault.custom.util.VpsVQLHelper;
 import com.veeva.vault.custom.util.api.VpsAPIClient;
 import com.veeva.vault.sdk.api.core.LogService;
@@ -56,11 +57,14 @@ public class VpsDocIdMessageProcessor implements MessageProcessor {
     public void updateAllVersions(String docId, String base30DocumentId, String apiConnection) {
 
         VpsVQLHelper vqlHelper = new VpsVQLHelper();
+        VpsUtilHelper utilHelper = new VpsUtilHelper();
         VpsAPIClient apiClient = new VpsAPIClient(apiConnection);
         LogService logger = ServiceLocator.locate(LogService.class);
 
-        vqlHelper.appendVQL("SELECT " + DOCFIELD_MAJOR_VERSION_NUMBER + "," +
-                DOCFIELD_MINOR_VERSION_NUMBER + "," + DOCFIELD_BASE30_DOCUMENT_ID +","+ DOCFIELD_BINDER);
+        vqlHelper.appendVQL("SELECT"+  DOCFIELD_MAJOR_VERSION_NUMBER + ",");
+        vqlHelper.appendVQL(DOCFIELD_MINOR_VERSION_NUMBER + "," );
+        vqlHelper.appendVQL(DOCFIELD_BASE30_DOCUMENT_ID +",");
+        vqlHelper.appendVQL(DOCFIELD_BINDER);
         vqlHelper.appendVQL(" FROM " + "allversions documents");
         vqlHelper.appendVQL(" WHERE " + DOCFIELD_ID + "=" + docId);
         QueryResponse versionResponse = vqlHelper.runVQL();
@@ -68,14 +72,14 @@ public class VpsDocIdMessageProcessor implements MessageProcessor {
         versionResponse.streamResults().forEach(versionResult -> {
             BigDecimal majorVersionNumber = versionResult.getValue(DOCFIELD_MAJOR_VERSION_NUMBER, ValueType.NUMBER);
             BigDecimal minorVersionNumber = versionResult.getValue(DOCFIELD_MINOR_VERSION_NUMBER, ValueType.NUMBER);
-            String existingDocId = getNotNullValue(versionResult.getValue(DOCFIELD_BASE30_DOCUMENT_ID, ValueType.STRING));
+            String existingDocId = utilHelper.getNotNullValue(versionResult.getValue(DOCFIELD_BASE30_DOCUMENT_ID, ValueType.STRING));
             boolean isBinder = versionResult.getValue(DOCFIELD_BINDER, ValueType.BOOLEAN);
 
             Map<String, String> documentFieldsToUpdate = VaultCollections.newMap();
             documentFieldsToUpdate.put(DOCFIELD_BASE30_DOCUMENT_ID, base30DocumentId);
             documentFieldsToUpdate.put(DOCFIELD_EXPORT_FILENAME, base30DocumentId);
 
-            if (existingDocId.equals("")) {
+            if (existingDocId != null && existingDocId.equals("")) {
                 boolean updateSuccess = false;
                 if (isBinder) {
                     updateSuccess = apiClient.updateBinderFields(docId, majorVersionNumber.toString(),
@@ -94,13 +98,6 @@ public class VpsDocIdMessageProcessor implements MessageProcessor {
             }
 
         });
-    }
-
-    public String getNotNullValue(String value) {
-        if (value == null) {
-            value = "";
-        }
-        return value;
     }
 }
 
