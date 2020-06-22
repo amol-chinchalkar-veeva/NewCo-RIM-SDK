@@ -160,4 +160,10 @@ public class VpsUtilHelper {
 		}
 		return result.toString();
 	}
+	public String getNotNullValue(String value) {
+		if (value == null) {
+			value = "";
+		}
+		return value;
+	}
 }
