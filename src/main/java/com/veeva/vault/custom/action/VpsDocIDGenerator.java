@@ -30,6 +30,7 @@ import com.veeva.vault.sdk.api.query.QueryResponse;
 import com.veeva.vault.sdk.api.queue.Message;
 import com.veeva.vault.sdk.api.queue.PutMessageResponse;
 import com.veeva.vault.sdk.api.queue.QueueService;
+
 import java.util.List;
 
 
@@ -169,8 +170,8 @@ public class VpsDocIDGenerator implements DocumentAction {
         //new record is created with the name__v set as "system managed field value"
         Record r = recordService.newRecord(autoNumberObjectName);
         recordList.add(r);
-        String recordID = saveRecords(recordList);
-        return recordID;
+        return saveRecords(recordList);
+
     }
 
     public String getNotNullValue(String value) {
@@ -197,7 +198,7 @@ public class VpsDocIDGenerator implements DocumentAction {
         //Put the new message into the Spark queue.
         //The Response can be used to review if queuing was successful or not
         PutMessageResponse response = queueService.putMessage(message);
-        logger.info("Put 'document' Message in Queue - for:{}",docId);
+        logger.info("Put 'document' Message in Queue - for:{}", docId);
 
         //Check that the message queue successfully processed the message.
         if (response.getError() != null) {
